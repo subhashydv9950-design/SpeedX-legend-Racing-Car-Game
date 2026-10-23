@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>मिनोंटो रेसिंग कार गेम (Minonto Racing Car Game)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #111;
+        }
+
+        #game-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* UI Overlays */
+        .ui-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(15, 15, 30, 0.9), rgba(40, 10, 50, 0.95));
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            color: #fff;
+            text-align: center;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            color: #00ffcc;
+            text-shadow: 0 0 20px rgba(0, 255, 204, 0.6);
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: #ff007f;
+            margin-bottom: 30px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .menu-box {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(0, 255, 204, 0.3);
+            border-radius: 15px;
+            padding: 30px;
+            width: 100%;
+            max-width: 450px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .game-btn {
+            background: linear-gradient(45deg, #00ffcc, #0077ff);
+            color: #000;
+            font-size: 1.2rem;
+            font-weight: bold;
+            padding: 14px 25px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 255, 204, 0.4);
+            text-transform: uppercase;
+        }
+
+        .game-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0, 255, 204, 0.7);
+            background: linear-gradient(45deg, #fff, #00ffcc);
+        }
+
+        .game-btn.secondary {
+            background: linear-gradient(45deg, #ff007f, #7f00ff);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(255, 0, 127, 0.4);
+        }
+
+        .game-btn.secondary:hover {
+            background: linear-gradient(45deg, #fff, #ff007f);
+            color: #000;
+        }
+
+        /* HUD (Head-Up Display) */
+        #hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            z-index: 5;
+            pointer-events: none;
+            display: none;
+        }
+
+        .hud-card {
+            background: rgba(0, 0, 0, 0.6);
+            border-left: 4px solid #00ffcc;
+            padding: 12px 20px;
+            border-radius: 4px;
+            backdrop-filter: blur(5px);
+            color: #fff;
+        }
+
+        .hud-card h3 {
+            font-size: 0.85rem;
+            color: #aaa;
+            text-transform: uppercase;
+        }
+
+        .hud-card .value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #00ffcc;
+        }
+
+        #speedometer {
+            text-align: right;
+            border-left: none;
+            border-right: 4px solid #ff007f;
+        }
+        #speedometer .value {
+            color: #ff007f;
+        }
+
+        /* Controls Tip */
+        #controls-tip {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.95rem;
+            z-index: 5;
+            pointer-events: none;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- Main Menu Screen -->
+        <div id="main-menu" class="ui-screen">
+            <h1>मिनोंटो रेसिंग</h1>
+            <div class="subtitle">High Speed 4-Lane Highway & Village Rush</div>
+            
+            <div class="menu-box">
+                <p style="margin-bottom: 15px; color: #ddd; font-size: 0.95rem;">मोड चुनें (Select Game Mode)</p>
+                <div class="btn-group">
+                    <button class="game-btn" onclick="startGame('highway')">⚡ हाईवे मोड (Highway)</button>
+                    <button class="game-btn secondary" onclick="startGame('village')">🏡 विलेज मोड (Village)</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pause / Game Over Screen -->
+        <div id="game-over-screen" class="ui-screen" style="display: none;">
+            <h1 style="color: #ff007f;">गेम ओवर! (Crashed)</h1>
+            <p id="final-stats" style="font-size: 1.3rem; margin: 15px 0; color: #ddd;"></p>
+            <div class="menu-box" style="max-width: 350px;">
+                <div class="btn-group">
+                    <button class="game-btn" onclick="restartGame()">फिर से खेलें</button>
+                    <button class="game-btn secondary" onclick="goToMenu()">मुख्य मेनू</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- In-Game HUD -->
+        <div id="hud">
+            <div class="hud-card">
+                <h3>स्कोर / दूरी</h3>
+                <div class="value" id="score-val">0 m</div>
+                <div style="font-size: 0.8rem; color: #00ffcc; margin-top: 4px;" id="level-val">लेवल: 1</div>
+            </div>
+            <div class="hud-card" id="speedometer">
+                <h3>स्पीड</h3>
+                <div class="value"><span id="speed-val">0</span> <span style="font-size: 1rem;">KM/H</span></div>
+            </div>
+        </div>
+
+        <div id="controls-tip">कंट्रोल्स: A/D या Left/Right Arrow (कार मोड़ने के लिए) | W/S या Up/Down (एक्सीलेरेटर/ब्रेक)</div>
+    </div>
+
+      <!-- Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        let scene, camera, renderer;
+        let playerCar;
+        let trafficCars = [];
+        let sceneryObjects = [];
+        let roadSegments = [];
+
+        let gameActive = false;
+        let currentMode = 'highway'; // 'highway' or 'village'
+        let score = 0;
+        let level = 1;
+        let speed = 0;
+        let maxSpeed = 520; // Max speed up to 520 KM/H
+        let acceleration = 0.8;
+        let deceleration = 0.5;
+
+        // Controls state
+        const keys = { left: false, right: false, up: false, down: false };
+
+        // Lane positions on 4-Lane road
+        // Road width is total ~24 units, 4 lanes mean centers at approx: -9, -3, +3, +9
+        const lanePositions = [-9, -3, 3, 9];
+        let playerLaneIndex = 1; // Start in lane 1
+
+        function init() {
+            // Scene Setup
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x111122, 0.015);
+
+            // Camera Setup
+            camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 7, -12);
+            camera.lookAt(0, 1, 10);
+
+            // Renderer Setup
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            document.getElementById('game-container').appendChild(renderer.domElement);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+            dirLight.position.set(20, 40, -20);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+
+            // Build Environment
+            createRoadAndEnvironment();
+            createPlayerCar();
+
+            // Event Listeners
+            window.addEventListener('resize', onWindowResize);
+            window.addEventListener('keydown', (e) => handleKeys(e, true));
+            window.addEventListener('keyup', (e) => handleKeys(e, false));
+
+            // Touch support for mobile
+            let touchX = 0;
+            window.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; });
+            window.addEventListener('touchmove', (e) => {
+                if (!gameActive) return;
+                let diff = e.touches[0].clientX - touchX;
+                if (diff > 30 && playerLaneIndex < 3) {
+                    playerLaneIndex++;
+                    touchX = e.touches[0].clientX;
+                } else if (diff < -30 && playerLaneIndex > 0) {
+                    playerLaneIndex--;
+                    touchX = e.touches[0].clientX;
+                }
+            });
+        }
+
+        // --- 4-Lane Road & Environment Generator ---
+        function createRoadAndEnvironment() {
+            // Create infinite moving road segments
+            for (let i = -5; i < 25; i++) {
+                createRoadSegment(i * 40);
+            }
+        }
+
+        function createRoadSegment(zPos) {
+            const segmentGroup = new THREE.Group();
+            segmentGroup.position.z = zPos;
+
+            // Road surface (4-Lane width = 28 units)
+            const roadGeo = new THREE.PlaneGeometry(28, 40);
+            const roadMat = new THREE.MeshStandardMaterial({ 
+                color: currentMode === 'highway' ? 0x1a1a1a : 0x3d2817, // Asphalt vs Dirt/Village road
+                roughness: 0.8 
+            });
+            const road = new THREE.Mesh(roadGeo, roadMat);
+            road.rotation.x = -Math.PI / 2;
+            road.receiveShadow = true;
+            segmentGroup.add(road);
+
+            // Lane Dividers (Yellow & White stripes)
+            const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            const yellowMat = new THREE.MeshBasicMaterial({ color: 0xffcc00 });
+
+            [-14, 14].forEach(x => {
+                const edgeLine = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 40), lineMat);
+                edgeLine.rotation.x = -Math.PI / 2;
+                edgeLine.position.set(x, 0.02, 0);
+                segmentGroup.add(edgeLine);
+            });
+
+            // Dashed center lines for 4 lanes
+            [-7, 0, 7].forEach(x => {
+                for (let j = -18; j < 20; j += 8) {
+                    const dash = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 4), yellowMat);
+                    dash.rotation.x = -Math.PI / 2;
+                    dash.position.set(x, 0.03, j);
+                    segmentGroup.add(dash);
+                }
+            });
+
+            // Side Scenery (Trees, Houses, Mountains changing views)
+            for (let side = -1; side <= 1; side += 2) {
+                let sideX = side * 20;
+                
+                // Add Trees or Village Houses based on mode
+                if (Math.random() > 0.3) {
+                    const sceneryItem = createSceneryObject(side === 1 ? 'right' : 'left');
+                    sceneryItem.position.set(sideX + (side * Math.random() * 8), 0, (Math.random() - 0.5) * 35);
+                    segmentGroup.add(sceneryItem);
+                }
+            }
+
+            scene.add(segmentGroup);
+            roadSegments.push(segmentGroup);
+        }
+
+        function createSceneryObject(side) {
+            const group = new THREE.Group();
+            if (currentMode === 'village') {
+                // Village Hut / House
+                const baseGeo = new THREE.BoxGeometry(4, 3, 4);
+                const baseMat = new THREE.MeshStandardMaterial({ color: 0xd9b38c });
+                const base = new THREE.Mesh(baseGeo, baseMat);
+                base.position.y = 1.5;
+                group.add(base);
+
+                const roofGeo = new THREE.ConeGeometry(3.5, 2, 4);
+                const roofMat = new THREE.MeshStandardMaterial({ color: 0x8b4513 });
+                const roof = new THREE.Mesh(roofGeo, roofMat);
+                roof.position.y = 4;
+                roof.rotation.y = Math.PI / 4;
+                group.add(roof);
+            } else {
+                // Highway Pine Tree / Modern Light Pole
+                if (Math.random() > 0.5) {
+                    // Tree Trunk
+                    const trunkGeo = new THREE.CylinderGeometry(0.4, 0.6, 3, 6);
+                    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5c4033 });
+                    const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+                    trunk.position.y = 1.5;
+                    group.add(trunk);
+
+                    // Tree Leaves
+                    const leavesGeo = new THREE.ConeGeometry(2.2, 5, 6);
+                    const leavesMat = new THREE.MeshStandardMaterial({ color: 0x2e8b57 });
+                    const leaves = new THREE.Mesh(leavesGeo, leavesMat);
+                    leaves.position.y = 4.5;
+                    group.add(leaves);
+                } else {
+                    // Modern Street Light Post
+                    const poleGeo = new THREE.CylinderGeometry(0.2, 0.2, 8, 6);
+                    const poleMat = new THREE.MeshStandardMaterial({ color: 0x555555 });
+                    const pole = new THREE.Mesh(poleGeo, poleMat);
+                    pole.position.y = 4;
+                    group.add(pole);
+                }
+            }
+            return group;
+        }
+
+        // --- High-Quality Sports Car Model ---
+        function createPlayerCar() {
+            playerCar = new THREE.Group();
+
+            // Sleek Sports Body (Low profile supercar)
+            const bodyGeo = new THREE.BoxGeometry(2.2, 0.7, 4.8);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x00ffcc, metalness: 0.8, roughness: 0.2 });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 0.6;
+            body.castShadow = true;
+            playerCar.add(body);
+
+            // Cabin / Windshield
+            const cabinGeo = new THREE.BoxGeometry(1.7, 0.5, 2.4);
+            const cabinMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.9, roughness: 0.1 });
+            const cabin = new THREE.Mesh(cabinGeo, cabinMat);
+            cabin.position.set(0, 1.1, -0.2);
+            playerCar.add(cabin);
+
+            // Wheels (4 wheels)
+            const wheelGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.4, 16);
+            wheelGeo.rotateZ(Math.PI / 2);
+            const wheelMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
+
+            const wheelPositions = [
+                [-1.2, 0.4, 1.5],   // Front Left
+                [1.2, 0.4, 1.5],    // Front Right
+                [-1.2, 0.4, -1.5],  // Back Left
+                [1.2, 0.4, -1.5]    // Back Right
+            ];
+
+            playerCar.wheels = [];
+            wheelPositions.forEach(pos => {
+                const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+                wheel.position.set(...pos);
+                wheel.castShadow = true;
+                playerCar.add(wheel);
+                playerCar.wheels.push(wheel);
+            });
+
+            playerCar.position.set(lanePositions[playerLaneIndex], 0, 0);
+            scene.add(playerCar);
+        }
+
+        // --- Traffic Cars Spawner ---
+        function spawnTrafficCar() {
+            if (!gameActive) return;
+
+            const trafficGroup = new THREE.Group();
+            
+            // Random traffic car color
+            const colors = [0xff0055, 0x3366ff, 0xffaa00, 0xffffff, 0x8800ff];
+            const carColor = colors[Math.floor(Math.random() * colors.length)];
+
+            const bodyGeo = new THREE.BoxGeometry(2.1, 0.75, 4.5);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: carColor, metalness: 0.5, roughness: 0.3 });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 0.6;
+            trafficGroup.add(body);
+
+            // Choose random lane from 4 lanes
+            const laneIdx = Math.floor(Math.random() * 4);
+            const zStart = playerCar.position.z + 120 + Math.random() * 50;
+            
+            trafficGroup.position.set(lanePositions[laneIdx], 0, zStart);
+            trafficGroup.laneIndex = laneIdx;
+            
+            // Traffic speed relative to difficulty/level
+            trafficGroup.speed = 100 + Math.random() * (level * 25);
+
+            scene.add(trafficGroup);
+            trafficCars.push(trafficGroup);
+        }
+
+        // --- Game Controls ---
+        function handleKeys(e, isDown) {
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = isDown;
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = isDown;
+            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') keys.up = isDown;
+            if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') keys.down = isDown;
+
+            // Instant lane switching on tap/keypress
+            if (isDown && gameActive) {
+                if ((e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') && playerLaneIndex > 0) {
+                    playerLaneIndex--;
+                }
+                if ((e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') && playerLaneIndex < 3) {
+                    playerLaneIndex++;
+                }
+            }
+        }
+
+        // --- Game Flow Control ---
+        function startGame(mode) {
+            currentMode = mode;
+            document.getElementById('main-menu').style.display = 'none';
+            document.getElementById('game-over-screen').style.display = 'none';
+            document.getElementById('hud').style.display = 'flex';
+
+            // Reset game states
+            score = 0;
+            level = 1;
+            speed = 0;
+            playerLaneIndex = 1;
+            
+            // Clear old traffic & road
+            trafficCars.forEach(car => scene.remove(car));
+            trafficCars = [];
+            roadSegments.forEach(seg => scene.remove(seg));
+            roadSegments = [];
+
+            createRoadAndEnvironment();
+            if (playerCar) scene.remove(playerCar);
+            createPlayerCar();
+
+            gameActive = true;
+            
+            // Spawn traffic periodically based on level intensity
+            setInterval(() => {
+                if (gameActive) spawnTrafficCar();
+            }, Math.max(800 - (level * 100), 300));
+
+            animate();
+        }
+
+        function gameOver() {
+            gameActive = false;
+            document.getElementById('final-stats').innerHTML = `दूरी तय की: <b>${Math.floor(score)} मीटर</b><br>पहुंचे लेवल तक: <b>${level}</b>`;
+            document.getElementById('game-over-screen').style.display = 'flex';
+            document.getElementById('hud').style.display = 'none';
+        }
+
+        function restartGame() {
+            startGame(currentMode);
+        }
+
+        function goToMenu() {
+            gameActive = false;
+            document.getElementById('game-over-screen').style.display = 'none';
+            document.getElementById('main-menu').style.display = 'flex';
+            document.getElementById('hud').style.display = 'none';
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // --- Main Game Loop ---
+        function animate() {
+            if (!gameActive) return;
+
+            requestAnimationFrame(animate);
+
+            // Speed Physics (Up to 520 KM/H high speed)
+            if (keys.up) {
+                speed = Math.min(speed + acceleration, maxSpeed);
+            } else {
+                // Natural acceleration or cruising when W is pressed/unpressed
+                speed = Math.min(speed + 0.3, maxSpeed * 0.7);
+            }
+
+            if (keys.down) {
+                speed = Math.max(speed - deceleration * 2, 0);
+            }
+
+            // Update Score & Level Progression based on speed
+            score += speed * 0.02;
+            level = Math.floor(score / 500) + 1;
+
+            // Smoothly move player car to target lane X position
+            let targetX = lanePositions[playerLaneIndex];
+            playerCar.position.x += (targetX - playerCar.position.x) * 0.2;
+
+            // Slight car tilt when turning
+            playerCar.rotation.z = (targetX - playerCar.position.x) * -0.05;
+            playerCar.position.z += speed * 0.05;
+
+            // Move camera smoothly behind player car
+            camera.position.z = playerCar.position.z - 12;
+            camera.position.x += (playerCar.position.x * 0.4 - camera.position.x) * 0.1;
+
+            // Infinite Road Generation & Recycling
+            roadSegments.forEach(segment => {
+                if (segment.position.z < playerCar.position.z - 40) {
+                    segment.position.z += 40 * roadSegments.length;
+                }
+            });
+
+            // Update & Check Traffic Collisions
+            for (let i = trafficCars.length - 1; i >= 0; i--) {
+                let tCar = trafficCars[i];
+                tCar.position.z -= (speed - tCar.speed) * 0.03;
+
+                // Collision Detection (Bounding Box check)
+                let dx = Math.abs(playerCar.position.x - tCar.position.x);
+                let dz = Math.abs(playerCar.position.z - tCar.position.z);
+                if (dx < 1.8 && dz < 3.5) {
+                    gameOver();
+                }
+
+                // Remove car if far behind
+                if (tCar.position.z < playerCar.position.z - 30) {
+                    scene.remove(tCar);
+                    trafficCars.splice(i, 1);
+                }
+            }
+
+            // Update HUD UI
+            document.getElementById('speed-val').innerText = Math.floor(speed);
+            document.getElementById('score-val').innerText = Math.floor(score) + " m";
+            document.getElementById('level-val').innerText = "लेवल: " + level;
+
+            renderer.render(scene, camera);
+        }
+
+        // Initialize on load
+        window.onload = init;
+    </script>
+</body>
+  </html>
+  
